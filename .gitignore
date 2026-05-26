@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Jupyter
+*.ipynb_checkpoints
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local cache from notebook runs
+nifty_spot_*.parquet
+nse_raw.parquet
+*.zip
+
+# Logs
+*.log

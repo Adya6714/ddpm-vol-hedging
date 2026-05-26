@@ -1,0 +1,18 @@
+# Core scientific stack
+numpy>=1.24
+pandas>=2.0
+scipy>=1.11
+matplotlib>=3.7
+seaborn>=0.13
+
+# Deep learning
+torch>=2.0
+
+# Data sources
+yfinance>=0.2.40
+pyarrow>=14.0       # parquet IO
+requests>=2.31
+
+# Notebook tooling (only needed if running the .ipynb locally)
+ipykernel>=6.25
+jupyter>=1.0

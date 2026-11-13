@@ -1,0 +1,5 @@
+surfaces_dir: "data/surfaces"
+folds_dir: "data/folds"
+test_years: [2020, 2021, 2022, 2023, 2024, 2025]
+val_months: 6
+lag: 1

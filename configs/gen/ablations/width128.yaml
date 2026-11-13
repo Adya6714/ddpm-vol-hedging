@@ -1,0 +1,5 @@
+world: ddpm
+timesteps: 100
+hidden: 128
+epochs: 50
+out_dir: "models/gen/ddpm_ablate_w128"

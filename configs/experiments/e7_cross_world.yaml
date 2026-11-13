@@ -1,0 +1,5 @@
+worlds: [gbm, heston, pcavar, bootstrap, ddpm]
+instruments: [I1, I2, I3]
+contract: "configs/contracts/doc_090.yaml"
+n_test: 100000
+out_dir: "tables"

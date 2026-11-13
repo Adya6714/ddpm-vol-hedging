@@ -1,0 +1,8 @@
+algo: deep_hedge
+epochs: 50
+lr: 0.001
+alpha: 0.95
+hidden: 128
+cost_bps: 2.0
+option_frac: 0.01
+out_dir: "models/hedge"

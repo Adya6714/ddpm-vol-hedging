@@ -1,0 +1,4 @@
+cost_bps: [0, 1, 2, 5, 10]
+barrier_mult: [0.85, 0.90, 0.95]
+maturity_days: [30, 60]
+out_dir: "tables"

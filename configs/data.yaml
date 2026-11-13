@@ -1,0 +1,13 @@
+start: "2018-01-02"
+end: "2026-03-31"
+udiff_from: "2024-07-08"
+udiff_url_pattern: "https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{yyyymmdd}_F_0000.csv.zip"
+raw_dir: "data/raw"
+surfaces_dir: "data/surfaces"
+moneyness: [0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20]
+tenors_days: [7, 14, 30, 60, 90, 180]
+r: 0.065
+min_volume: 50
+min_price: 1.0
+min_dte: 3
+svi_rmse_max: 0.05

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "niftyhedge"
+version = "0.2.0"
+description = "Deep hedging of NIFTY barrier options with diffusion-generated IV surfaces"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Adya Srivastava" }]
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "scipy>=1.11",
+  "matplotlib>=3.7",
+  "torch>=2.1",
+  "pyarrow>=14.0",
+  "pyyaml>=6.0",
+  "requests>=2.31",
+  "yfinance>=0.2.40",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-timeout>=2.2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 120
+filterwarnings = ["ignore::DeprecationWarning"]

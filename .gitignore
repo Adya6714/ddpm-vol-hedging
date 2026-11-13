@@ -31,3 +31,20 @@ nse_raw.parquet
 
 # Logs
 *.log
+
+# Package / experiment artefacts
+*.egg-info/
+dist/
+build/
+.eggs/
+runs/
+data/folds/
+data/surfaces/
+data/paths/
+data/raw/nifty_options_raw.parquet
+data/raw/download_log.csv
+models/gen/
+models/hedge/
+models/hedge_ppo/
+tables/*.csv
+!tables/.gitkeep

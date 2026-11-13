@@ -1,0 +1,3 @@
+world: gbm
+r: 0.065
+out_dir: "models/gen/gbm"

@@ -1,0 +1,5 @@
+algo: ppo
+epochs: 20
+lr: 0.0003
+alpha: 0.95
+out_dir: "models/hedge_ppo"

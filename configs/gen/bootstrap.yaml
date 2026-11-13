@@ -1,0 +1,3 @@
+world: bootstrap
+block: 5
+out_dir: "models/gen/bootstrap"

@@ -1,0 +1,3 @@
+world: pcavar
+n_factors: 3
+out_dir: "models/gen/pcavar"

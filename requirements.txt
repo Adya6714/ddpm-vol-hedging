@@ -1,18 +1,14 @@
-# Core scientific stack
+# Install the package (preferred):
+#   pip install -e ".[dev]"
+#
+# Or bare dependencies:
 numpy>=1.24
 pandas>=2.0
 scipy>=1.11
 matplotlib>=3.7
-seaborn>=0.13
-
-# Deep learning
-torch>=2.0
-
-# Data sources
-yfinance>=0.2.40
-pyarrow>=14.0       # parquet IO
+torch>=2.1
+pyarrow>=14.0
+pyyaml>=6.0
 requests>=2.31
-
-# Notebook tooling (only needed if running the .ipynb locally)
-ipykernel>=6.25
-jupyter>=1.0
+yfinance>=0.2.40
+pytest>=7.4

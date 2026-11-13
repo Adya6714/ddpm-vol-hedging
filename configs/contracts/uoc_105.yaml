@@ -1,0 +1,4 @@
+kind: UOC
+strike_mult: 1.0
+barrier_mult: 1.05
+maturity_days: 30

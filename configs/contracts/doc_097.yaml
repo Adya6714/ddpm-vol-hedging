@@ -1,0 +1,4 @@
+kind: DOC
+strike_mult: 1.0
+barrier_mult: 0.97
+maturity_days: 30

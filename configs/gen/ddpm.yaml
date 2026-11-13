@@ -1,0 +1,6 @@
+world: ddpm
+timesteps: 100
+hidden: 128
+epochs: 50
+lr: 0.001
+out_dir: "models/gen/ddpm"

@@ -42,7 +42,9 @@ data/folds/
 data/surfaces/
 data/paths/
 data/raw/nifty_options_raw.parquet
+data/raw/nifty_options_raw.parquet.tmp
 data/raw/download_log.csv
+data/raw/bhav_daily/
 models/gen/
 models/hedge/
 models/hedge_ppo/

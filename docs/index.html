@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIFTY Hedge Lab</title>
+<meta name="description" content="Interactive NIFTY 50 implied-volatility surfaces and a barrier-option hedging simulator, with results from a deep-hedging study across simulated and real markets.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Cpath d='M5 22 12 12l5 6 10-12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#fafaf9;--card:#ffffff;--fg:#0f1419;--mut:#6b7280;--line:#e7e5e4;
+  --acc:#0f766e;--acc-soft:#ccfbf1;--up:#16a34a;--down:#dc2626;--warn-bg:#fffbeb;--warn-fg:#92400e;--warn-line:#fde68a;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b0d10;--card:#12151a;--fg:#e8eaed;--mut:#8b93a1;--line:#222831;
+  --acc:#2dd4bf;--acc-soft:#0f2a28;--up:#4ade80;--down:#f87171;--warn-bg:#1c1708;--warn-fg:#fcd34d;--warn-line:#3b2f0b;}}
+:root[data-theme="dark"]{
+  --bg:#0b0d10;--card:#12151a;--fg:#e8eaed;--mut:#8b93a1;--line:#222831;
+  --acc:#2dd4bf;--acc-soft:#0f2a28;--up:#4ade80;--down:#f87171;--warn-bg:#1c1708;--warn-fg:#fcd34d;--warn-line:#3b2f0b;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:20px;height:52px}
+.brand{font-weight:650;letter-spacing:-.01em;color:var(--fg);display:flex;align-items:center;gap:8px}
+.brand i{width:10px;height:10px;border-radius:3px;background:var(--acc);display:inline-block}
+nav .links{display:flex;gap:18px;margin-left:auto;font-size:13.5px}
+nav .links a{color:var(--mut)}nav .links a:hover{color:var(--fg);text-decoration:none}
+.brand{white-space:nowrap}
+@media(max-width:640px){nav .links a:nth-child(n+3){display:none}nav .links{gap:14px}}
+header.hero{padding:64px 0 36px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);font-weight:600}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.03em;margin:10px 0 14px;font-weight:700;max-width:760px}
+.lead{color:var(--mut);font-size:17px;max-width:680px;margin:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:32px}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .l{font-size:12px;color:var(--mut)}
+.kpi .v{font-size:26px;font-weight:650;letter-spacing:-.02em;margin-top:2px}
+.kpi .s{font-size:12px;color:var(--mut)}
+section{padding:44px 0;border-top:1px solid var(--line)}
+section h2{font-size:24px;letter-spacing:-.02em;margin:0 0 6px}
+section .sub{color:var(--mut);margin:0 0 22px;max-width:720px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px}
+.pad{padding:16px}
+.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:14px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.labgrid{grid-template-columns:1.6fr 1fr}
+@media(max-width:860px){.labgrid{grid-template-columns:1fr}}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.between{justify-content:space-between}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+.stats div{padding:12px 16px;border-right:1px solid var(--line)}
+.stats div:last-child{border-right:0}
+.stats .l{font-size:11.5px;color:var(--mut)}.stats .v{font-size:18px;font-weight:600}
+@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.stats div:nth-child(2){border-right:0}.stats div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+button,.btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--mut)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) button.primary{color:#041311}}
+button.on{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+button:disabled{opacity:.45;cursor:default}
+.seg{display:inline-flex;gap:4px}
+input[type=range]{accent-color:var(--acc);width:100%}
+select{font:inherit;font-size:13px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+label.f{font-size:12px;color:var(--mut);display:block;margin-bottom:2px}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:14px}
+.date{font-weight:600}
+.chart{width:100%}
+.note{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line);border-radius:10px;padding:10px 14px;font-size:13.5px;margin-top:14px}
+.muted{color:var(--mut)}
+.pos{color:var(--up)}.neg{color:var(--down)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:right;padding:8px 12px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:500;color:var(--mut);font-size:12px}
+.roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:860px){.roadmap{grid-template-columns:1fr}}
+.roadmap .col h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+.roadmap li{margin-bottom:8px;font-size:14px}
+.roadmap ul{list-style:none;padding:0;margin:0}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:middle}
+footer{border-top:1px solid var(--line);padding:28px 0 48px;color:var(--mut);font-size:13px}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.score div{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.score .l{font-size:12px;color:var(--mut)}.score .v{font-size:18px;font-weight:650;white-space:nowrap}
+.loading{color:var(--mut);padding:80px 0;text-align:center}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <span class="brand"><i></i>NIFTY Hedge Lab</span>
+  <div class="links"><a href="#surfaces">Surfaces</a><a href="#lab">Hedging lab</a><a href="#results">Results</a><a href="#roadmap">Roadmap</a><a href="https://github.com/Adya6714/ddpm-vol-hedging">GitHub</a></div>
+</div></nav>
+
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">Deep hedging · NIFTY 50 · barrier options</div>
+  <h1>Does the market simulator you train on change how well you hedge?</h1>
+  <p class="lead">We train hedging agents in simulated markets (GBM, Heston, bootstrap, diffusion-generated volatility surfaces) and score them on real NIFTY data. Explore the surfaces, hedge a barrier option yourself, and see where the results stand.</p>
+  <div class="kpis" id="kpis"></div>
+</header>
+</div>
+
+<div class="wrap" id="app"><div class="loading">Loading data…</div></div>
+
+<template id="tpl">
+<section id="surfaces">
+  <h2>Implied-volatility surfaces</h2>
+  <p class="sub">Daily NIFTY surfaces rebuilt from NSE option quotes: futures-anchored forwards, SVI fits per expiry, resampled to a 9 × 6 grid (moneyness × tenor). White dots mark cells that were actually quoted; the rest is interpolated or extrapolated.</p>
+  <div class="card">
+    <div class="pad row between">
+      <div class="row">
+        <button id="play" class="primary">Play</button>
+        <button id="build">Build this surface</button>
+        <select id="speed"><option value="1">1 day/step</option><option value="3" selected>3 days/step</option><option value="10">10 days/step</option></select>
+        <span class="muted" style="font-size:13px">Jump:</span>
+        <span class="seg" id="jumps"></span>
+      </div>
+      <div class="date num" id="sdate"></div>
+    </div>
+    <div class="pad" style="padding-top:0"><input type="range" id="sslider" min="0" value="0"></div>
+    <div class="grid2">
+      <div id="surf3d" class="chart" style="height:430px"></div>
+      <div>
+        <div class="pad row between" style="padding-bottom:0"><span class="muted" style="font-size:12.5px">Smile at tenor</span><span class="seg" id="tenorSeg"></span></div>
+        <div id="smile" class="chart" style="height:190px"></div>
+        <div class="pad" style="padding:0 16px"><span class="muted" style="font-size:12.5px">ATM term structure</span></div>
+        <div id="term" class="chart" style="height:170px"></div>
+      </div>
+    </div>
+    <div class="stats" id="sstats"></div>
+  </div>
+  <div id="timeline" class="chart card" style="height:190px;margin-top:14px"></div>
+  <p class="muted" style="font-size:12.5px;margin-top:8px">Click the timeline to jump. Dotted lines show the sample median. About 58% of grid cells are extrapolated and about 31% of days show wing butterfly violations, so treat the wings as model-fitted, not observed.</p>
+</section>
+
+<section id="lab">
+  <h2>Hedging lab</h2>
+  <p class="sub">You are short one 30-day down-and-out call (strike = spot, barrier below spot). Each day, choose how many units of the underlying to hold. The bot holds the Broadie–Glasserman–Kou-adjusted barrier delta. Real NIFTY paths, real ATM implied vol, 2 bp transaction cost.</p>
+  <div class="card pad">
+    <div class="ctl">
+      <div><label class="f">Start date <span class="date num" id="gdate"></span></label><input type="range" id="gstart" min="0" value="0"></div>
+      <div><label class="f">Barrier <span class="num" id="gbarlab"></span></label><input type="range" id="gbar" min="80" max="97" value="90"></div>
+      <div><label class="f">Presets</label><span class="seg" id="gpre"></span></div>
+    </div>
+    <div class="grid2 labgrid">
+      <div id="game" class="chart" style="height:470px"></div>
+      <div>
+        <div class="card pad" style="background:var(--bg)">
+          <div class="row between"><b>Day <span id="gday" class="num">0</span> / 30</b><span id="gstatus" class="muted" style="font-size:13px"></span></div>
+          <div style="margin:14px 0 4px" class="row between"><label class="f" style="margin:0">Your hedge ratio</label><b class="num" id="ghv">0.50</b></div>
+          <input type="range" id="gh" min="0" max="150" value="50">
+          <div class="muted num" style="font-size:12.5px;margin-top:4px">Bot would hold <b id="gbot" style="color:var(--acc)">–</b> · option delta now</div>
+          <div class="row" style="margin-top:14px">
+            <button id="gstep" class="primary">Hold &amp; advance a day</button>
+            <button id="gcopy">Copy bot</button>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button id="gauto">Let bot finish</button>
+            <button id="greset">Restart</button>
+          </div>
+          <div id="gscore"></div>
+        </div>
+        <p class="muted" style="font-size:12.5px;margin-top:10px">Lower panel: running P&amp;L in basis points of the starting spot, counting the premium received, the option's mark-to-market, hedge gains and costs.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin:30px 0 4px;font-size:17px">Score a strategy across every real window</h3>
+  <p class="sub" style="margin-bottom:14px">Replays the same contract from every daily start date in the sample (overlapping 30-day windows) and reports CVaR95, the average of the worst 5% of losses.</p>
+  <div class="card pad">
+    <div class="ctl">
+      <div><label class="f">Constant hedge ratio <span class="num" id="cclab"></span></label><input type="range" id="cc" min="0" max="120" value="50"></div>
+      <div><label class="f">Windows</label><select id="cwin"><option value="all">All starts, 2018 – 2026</option><option value="2025">2025 onward (paper test fold)</option></select></div>
+      <div><label class="f">&nbsp;</label><button id="crun" class="primary">Run backtest</button></div>
+    </div>
+    <div id="cres"><div class="muted" style="padding:20px 0;text-align:center">Press “Run backtest”.</div></div>
+  </div>
+  <p class="muted" style="font-size:12.5px;margin-top:8px">This is a quick browser re-implementation of the classical strategies. The trained deep hedgers are shown in the results below.</p>
+</section>
+
+<section id="results">
+  <h2>Results so far</h2>
+  <p class="sub">Real NIFTY windows, 2025 to March 2026 (the last walk-forward fold, 277 windows), 30-day down-and-out call struck at spot with the barrier at 90%. CVaR95 of terminal loss in basis points of notional. Lower is better. Bars show 95% block-bootstrap intervals.</p>
+  <div class="row" style="margin-bottom:12px"><span class="seg" id="iseg"><button data-i="I1" class="on">I1 · underlying only</button><button data-i="I2">I2 · + vanilla options</button></span></div>
+  <div class="card"><div id="bars" class="chart" style="height:340px"></div></div>
+  <div class="note"><b>Preliminary.</b> One walk-forward fold, one seed and short training. The diffusion (DDPM) world is not in these numbers yet. With the underlying only (I1), the deep hedger is statistically indistinguishable from the classical barrier delta; trained on bootstrap paths it is clearly worse. With vanilla options available as extra hedge instruments (I2), CVaR falls by about half, but that comparison uses more instruments than the classical underlying-only hedge.</div>
+
+  <h3 style="margin:30px 0 4px;font-size:17px">Cross-world matrix</h3>
+  <p class="sub" style="margin-bottom:12px">Rows: hedger (deep hedgers are labelled by the world they trained in). Columns: the world they are tested in, ending with real NIFTY. A hedger trained in one world can look good in it and still lose on real data.</p>
+  <div class="card"><div id="heat" class="chart" style="height:340px"></div></div>
+</section>
+
+<section id="roadmap">
+  <h2>Roadmap</h2>
+  <p class="sub">What is built, what is running, and what the paper still needs.</p>
+  <div class="roadmap">
+    <div class="card pad col"><h3>Done</h3><ul>
+      <li><span class="dot" style="background:var(--up)"></span>Surface pipeline: futures-anchored forwards, SVI, 8 years of daily surfaces</li>
+      <li><span class="dot" style="background:var(--up)"></span>Barrier pricing checked against Monte Carlo (Reiner–Rubinstein + BGK shift)</li>
+      <li><span class="dot" style="background:var(--up)"></span>Deep hedger (CVaR objective) and a genuine PPO ablation</li>
+      <li><span class="dot" style="background:var(--up)"></span>Cross-world evaluation and real walk-forward backtest with bootstrap CIs</li>
+    </ul></div>
+    <div class="card pad col"><h3>Running</h3><ul>
+      <li><span class="dot" style="background:#d97706"></span>Full Colab run: six folds, several seeds, vanilla control contract</li>
+      <li><span class="dot" style="background:#d97706"></span>Decide the surface grid: narrower 0.90–1.10 range vs masked training loss for the generator</li>
+    </ul></div>
+    <div class="card pad col"><h3>Next</h3><ul>
+      <li><span class="dot" style="background:var(--mut)"></span>Train the diffusion surface generator and add it as a market world</li>
+      <li><span class="dot" style="background:var(--mut)"></span>Interpretability: probe the generator's internals</li>
+      <li><span class="dot" style="background:var(--mut)"></span>Novelty and citation check, then rewrite the paper around the new tables</li>
+      <li><span class="dot" style="background:var(--mut)"></span>Live-style demo: trained deep hedger running in the browser</li>
+    </ul></div>
+  </div>
+</section>
+</template>
+
+<div class="wrap"><footer>
+  Research prototype, not investment advice. Data: NSE derivatives (NIFTY 50 options and futures), 2018–2026. Source and notebooks on <a href="https://github.com/Adya6714/ddpm-vol-hedging">GitHub</a>.
+</footer></div>
+
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const fmt=(x,d=1)=>Number(x).toFixed(d);
+let D,R;
+
+/* ---------- theme-aware plot helpers ---------- */
+function col(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim();}
+function axis(o={}){return Object.assign({gridcolor:col('--line'),zerolinecolor:col('--line'),linecolor:col('--line'),tickfont:{size:11},automargin:true},o);}
+function layout(o={}){
+  const base={paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',font:{family:'-apple-system,BlinkMacSystemFont,Inter,Segoe UI,sans-serif',color:col('--mut'),size:12},margin:{l:46,r:14,t:10,b:34},showlegend:false,hovermode:'closest'};
+  return Object.assign(base,o);
+}
+const cfg={displayModeBar:false,responsive:true};
+
+/* ---------- pricing (continuous Reiner–Rubinstein + BGK shift) ---------- */
+const RF=0.065,BETA=0.5826;
+function N(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989422804*Math.exp(-x*x/2);
+  const p=d*t*(0.31938153+t*(-0.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return x>0?1-p:p;}
+function call(S,K,T,s){const v=s*Math.sqrt(T),d1=(Math.log(S/K)+(RF+s*s/2)*T)/v;return S*N(d1)-K*Math.exp(-RF*T)*N(d1-v);}
+function doc(S,K,B,T,s){
+  if(S<=B)return 0;
+  const l=(RF+s*s/2)/(s*s),sq=s*Math.sqrt(T),y=Math.log(B*B/(S*K))/sq+l*sq;
+  const dic=S*Math.pow(B/S,2*l)*N(y)-K*Math.exp(-RF*T)*Math.pow(B/S,2*l-2)*N(y-sq);
+  return call(S,K,T,s)-dic;}
+const bgk=(B,s)=>B*Math.exp(-BETA*s*Math.sqrt(1/365));
+function delta(S,K,B,T,s,shift=true){
+  const Be=shift?bgk(B,s):B,e=S*0.002;
+  const d=(doc(S+e,K,Be,T,s)-doc(S-e,K,Be,T,s))/(2*e);
+  return Math.max(0,Math.min(1.5,d));}
+
+/* ---------- window simulation ---------- */
+const H=30,COST=2e-4,IVIDX=4*6+2; // ATM, 30d
+function win(i0,b){
+  const S=[],sg=[];for(let t=0;t<=H;t++){S.push(D.spot[i0+t]);sg.push(D.iv[i0+t][IVIDX]/100);}
+  return {S,sg,K:S[0],B:b*S[0],i0};}
+function tRem(t){return Math.max(H-t,1)/365;}
+function knockedBy(w,t){for(let u=1;u<=t;u++)if(w.S[u]<=w.B)return true;return false;}
+function botH(w,t,shift=true){ // hedge held over (t,t+1]
+  if(knockedBy(w,t))return 0;
+  return delta(w.S[t],w.K,w.B,tRem(t),w.sg[t],shift);}
+function value(w,t){ // option mark at t
+  if(knockedBy(w,t))return 0;
+  if(t>=H)return Math.max(w.S[H]-w.K,0);
+  return doc(w.S[t],w.K,bgk(w.B,w.sg[t]),tRem(t),w.sg[t]);}
+function price0(w){return doc(w.S[0],w.K,bgk(w.B,w.sg[0]),H/365,w.sg[0]);}
+function pnlCurve(w,h,upto){ // running P&L / S0 in bp, using hedges h[0..upto-1]
+  const p0=price0(w),out=[];let g=0,c=0,hp=0;
+  for(let t=0;t<=upto;t++){
+    if(t>0){const hh=h[t-1];g+=hh*(w.S[t]-w.S[t-1]);}
+    if(t<upto){const hh=h[t];c+=COST*Math.abs(hh-hp)*w.S[t];hp=hh;}
+    out.push(1e4*(p0-value(w,t)+g-c)/w.S[0]);}
+  return out;}
+function lossOf(w,h){const c=pnlCurve(w,h,H);return -c[H];}
+const cvar=(a,q=0.95)=>{const s=[...a].sort((x,y)=>y-x),k=Math.max(1,Math.ceil(s.length*(1-q)));return s.slice(0,k).reduce((x,y)=>x+y,0)/k;};
+
+/* ---------- init ---------- */
+function init(){
+  $('#app').innerHTML='';$('#app').append($('#tpl').content.cloneNode(true));
+  kpis();initSurfaces();initLab();initResults();
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{drawAll();});
+}
+function bt(instr,hedger){return R.backtest.find(r=>r.instruments===instr&&r.hedger===hedger);}
+function kpis(){
+  const bg=bt('I1','bs_barrier_delta_bgk'),nh=bt('I1','no_hedge'),d2=bt('I2','deep[gbm]');
+  const items=[['Surfaces built',D.dates.length.toLocaleString(),'daily, 2018 – 2026'],
+    ['No hedge',fmt(nh.cvar95_bp,0)+' bp','CVaR95, real windows'],
+    ['Classical barrier delta',fmt(bg.cvar95_bp,0)+' bp','CVaR95, real windows'],
+    ['Deep hedger + options',fmt(d2.cvar95_bp,0)+' bp','preliminary, I2 set']];
+  $('#kpis').innerHTML=items.map(([l,v,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v num">${v}</div><div class="s">${s}</div></div>`).join('');
+}
+
+/* ================= surfaces ================= */
+const NM=9,NT=6;let si=D?0:0,playing=null,buildP=1,tenorSel=2;
+let med=null,zlo,zhi;
+function initSurfaces(){
+  const n=D.dates.length;si=n-1;
+  const sl=$('#sslider');sl.max=n-1;sl.value=si;
+  // medians per cell
+  med=[];for(let c=0;c<NM*NT;c++){const a=D.iv.map(r=>r[c]).sort((x,y)=>x-y);med.push(a[a.length>>1]);}
+  const all=D.iv.flat().sort((x,y)=>x-y);zlo=Math.max(0,Math.floor(all[(all.length*0.005)|0]-2));zhi=Math.ceil(all[(all.length*0.995)|0]+2);
+  sl.addEventListener('input',()=>{si=+sl.value;drawSurf();});
+  $('#play').onclick=()=>{
+    if(playing){clearInterval(playing);playing=null;$('#play').textContent='Play';return;}
+    $('#play').textContent='Pause';
+    playing=setInterval(()=>{const st=+$('#speed').value;si+=st;if(si>=n){si=0;}sl.value=si;drawSurf();},90);};
+  $('#build').onclick=()=>{ if(playing){$('#play').click();} buildSurface();};
+  $('#jumps').innerHTML=[['2018-01-02','Start'],['2020-03-16','COVID crash'],['2022-06-17','2022 selloff'],['2024-06-04','Election day'],['latest','Latest']]
+    .map(([d,l])=>`<button data-d="${d}">${l}</button>`).join('');
+  $$('#jumps button').forEach(b=>b.onclick=()=>{const d=b.dataset.d;si=d==='latest'?n-1:nearest(d);sl.value=si;drawSurf();});
+  $('#tenorSeg').innerHTML=D.tenors.map((t,i)=>`<button data-t="${i}" class="${i===tenorSel?'on':''}">${t}d</button>`).join('');
+  $$('#tenorSeg button').forEach(b=>b.onclick=()=>{tenorSel=+b.dataset.t;$$('#tenorSeg button').forEach(x=>x.classList.toggle('on',x===b));drawSmile();});
+  drawTimeline();drawSurf();
+  $('#timeline').on('plotly_click',e=>{if(e.points&&e.points[0]){si=e.points[0].pointIndex;sl.value=si;drawSurf();}});
+}
+function nearest(d){let i=D.dates.findIndex(x=>x>=d);return i<0?D.dates.length-1:i;}
+function cell(i,m,t){return D.iv[i][m*NT+t];}
+function drawSurf(){
+  const i=si;$('#sdate').textContent=D.dates[i];
+  drawSurface(i,buildP);drawSmile();drawTerm();stats();cursor();}
+function drawSurface(i,p){
+  const atm=cell(i,4,2),z=[];
+  for(let m=0;m<NM;m++){const row=[];for(let t=0;t<NT;t++){const v=cell(i,m,t);row.push(atm+(v-atm)*Math.min(1,Math.max(0,(p-0.35)/0.65)));}z.push(row);}
+  const mk=D.mask[i],px=[],py=[],pz=[];
+  for(let m=0;m<NM;m++)for(let t=0;t<NT;t++)if(mk[m*NT+t]==='1'){px.push(t);py.push(D.moneyness[m]);pz.push(cell(i,m,t));}
+  const surf={type:'surface',x:[0,1,2,3,4,5],y:D.moneyness,z,cmin:zlo,cmax:zhi,showscale:false,opacity:p<0.35?0:0.93,
+    colorscale:[[0,'#1e3a5f'],[0.35,'#0f766e'],[0.7,'#5eead4'],[1,'#fde68a']],
+    hovertemplate:'tenor idx %{x}<br>moneyness %{y:.2f}<br>IV %{z:.1f}%<extra></extra>',contours:{z:{show:true,usecolormap:true,project:{z:false}}}};
+  const dots={type:'scatter3d',mode:'markers',x:px,y:py,z:pz,marker:{size:3.2,color:col('--fg'),opacity:0.9},hoverinfo:'skip'};
+  const scene={xaxis:{title:{text:'Tenor'},tickvals:[0,1,2,3,4,5],ticktext:D.tenors.map(t=>t+'d'),gridcolor:col('--line'),backgroundcolor:'rgba(0,0,0,0)'},
+    yaxis:{title:{text:'Moneyness K/F'},gridcolor:col('--line'),backgroundcolor:'rgba(0,0,0,0)'},
+    zaxis:{title:{text:'IV %'},range:[Math.max(0,zlo-4),zhi],gridcolor:col('--line'),backgroundcolor:'rgba(0,0,0,0)'},
+    camera:{eye:{x:1.7,y:-1.6,z:0.85}},aspectratio:{x:1.15,y:1.15,z:0.7}};
+  Plotly.react('surf3d',[surf,dots],layout({margin:{l:0,r:0,t:0,b:0},scene,uirevision:'s'}),Object.assign({},cfg,{scrollZoom:false}));}
+function buildSurface(){
+  const i=si;let p=0;
+  const id=setInterval(()=>{p+=0.025;buildP=Math.min(1,p);drawSurface(i,buildP);if(p>=1){clearInterval(id);buildP=1;}},60);}
+function drawSmile(){
+  const i=si,t=tenorSel,x=D.moneyness,y=x.map((_,m)=>cell(i,m,t)),ym=x.map((_,m)=>med[m*NT+t]);
+  const q=x.map((_,m)=>D.mask[i][m*NT+t]==='1');
+  Plotly.react('smile',[
+    {x,y:ym,mode:'lines',line:{color:col('--mut'),width:1.2,dash:'dot'},hoverinfo:'skip'},
+    {x,y,mode:'lines+markers',line:{color:col('--acc'),width:2},marker:{size:q.map(v=>v?7:5),symbol:q.map(v=>v?'circle':'circle-open'),color:col('--acc')},hovertemplate:'K/F %{x:.2f}<br>IV %{y:.1f}%<extra></extra>'}],
+    layout({xaxis:axis({title:{text:'Moneyness',font:{size:11}}}),yaxis:axis({ticksuffix:'%'})}),cfg);}
+function drawTerm(){
+  const i=si,x=D.tenors,y=x.map((_,t)=>cell(i,4,t)),ym=x.map((_,t)=>med[4*NT+t]);
+  Plotly.react('term',[
+    {x,y:ym,mode:'lines',line:{color:col('--mut'),width:1.2,dash:'dot'},hoverinfo:'skip'},
+    {x,y,mode:'lines+markers',line:{color:col('--acc'),width:2},marker:{size:6,color:col('--acc')},hovertemplate:'%{x}d · %{y:.1f}%<extra></extra>'}],
+    layout({xaxis:axis({type:'log',tickvals:x,ticktext:x.map(v=>v+'d')}),yaxis:axis({ticksuffix:'%'})}),cfg);}
+function stats(){
+  const i=si,atm=cell(i,4,2),skew=cell(i,2,2)-cell(i,6,2),slope=cell(i,4,5)-cell(i,4,0);
+  const q=(D.mask[i].split('').filter(c=>c==='1').length/54*100);
+  $('#sstats').innerHTML=[['NIFTY spot',D.spot[i].toLocaleString(undefined,{maximumFractionDigits:0})],['ATM 30d IV',fmt(atm)+'%'],
+    ['Skew (0.90 – 1.10, 30d)',(skew>=0?'+':'')+fmt(skew)+' pts'],['Term slope (180d – 7d)',(slope>=0?'+':'')+fmt(slope)+' pts']]
+    .map(([l,v])=>`<div><div class="l">${l}</div><div class="v num">${v}</div></div>`).join('');}
+function drawTimeline(){
+  const x=D.dates,atm=D.iv.map(r=>r[IVIDX]);
+  Plotly.react('timeline',[
+    {x,y:D.spot,yaxis:'y2',mode:'lines',line:{color:col('--mut'),width:1},opacity:.55,hoverinfo:'skip'},
+    {x,y:atm,mode:'lines',line:{color:col('--acc'),width:1.6},hovertemplate:'%{x}<br>ATM 30d IV %{y:.1f}%<extra></extra>'}],
+    layout({margin:{l:46,r:52,t:10,b:30},xaxis:axis(),yaxis:axis({ticksuffix:'%',title:{text:'ATM 30d IV',font:{size:11}}}),
+      yaxis2:{overlaying:'y',side:'right',showgrid:false,tickfont:{size:11},title:{text:'Spot',font:{size:11}}},shapes:[]}),cfg);}
+function cursor(){
+  const d=D.dates[si];
+  Plotly.relayout('timeline',{shapes:[{type:'line',xref:'x',yref:'paper',x0:d,x1:d,y0:0,y1:1,line:{color:col('--fg'),width:1,dash:'dot'}}]});}
+
+/* ================= hedging lab ================= */
+let G=null;
+function initLab(){
+  const n=D.dates.length-H-1,st=$('#gstart');st.max=n-1;
+  G={start:nearest('2020-02-14'),b:.9,h:[],t:0,botPath:[]};st.value=G.start;
+  st.oninput=()=>{G.start=+st.value;resetGame();};
+  $('#gbar').oninput=e=>{G.b=e.target.value/100;resetGame();};
+  $('#gpre').innerHTML=[['2020-02-14','COVID crash'],['2018-02-01','Feb 2018 dip'],['2023-06-01','Calm 2023'],['rand','Random']].map(([d,l])=>`<button data-d="${d}">${l}</button>`).join('');
+  $$('#gpre button').forEach(b=>b.onclick=()=>{const d=b.dataset.d;G.start=d==='rand'?Math.floor(Math.random()*n):nearest(d);st.value=G.start;resetGame();});
+  $('#gh').oninput=e=>{$('#ghv').textContent=fmt(e.target.value/100,2);};
+  $('#gstep').onclick=()=>advance(+$('#gh').value/100);
+  $('#gcopy').onclick=()=>{const w=win(G.start,G.b);const v=botH(w,G.t);$('#gh').value=Math.round(v*100);$('#ghv').textContent=fmt(v,2);};
+  $('#gauto').onclick=()=>{const w=win(G.start,G.b);while(G.t<H)advance(botH(w,G.t),true);drawGame();};
+  $('#greset').onclick=()=>resetGame();
+  $('#cc').oninput=e=>{$('#cclab').textContent=fmt(e.target.value/100,2);};$('#cclab').textContent='0.50';
+  $('#crun').onclick=runBacktest;
+  resetGame();
+}
+function resetGame(){
+  G.h=[];G.t=0;const w=win(G.start,G.b);
+  $('#gdate').textContent=D.dates[G.start];$('#gbarlab').textContent=fmt(G.b*100,0)+'% of spot';
+  const v=botH(w,0);$('#gh').value=Math.round(v*100);$('#ghv').textContent=fmt(v,2);
+  $('#gscore').innerHTML='';$('#gstep').disabled=false;$('#gcopy').disabled=false;$('#gauto').disabled=false;
+  drawGame();}
+function advance(h,silent){
+  if(G.t>=H)return;
+  const w=win(G.start,G.b);
+  G.h.push(knockedBy(w,G.t)?0:h);G.t++;
+  if(!silent)drawGame();
+  if(G.t>=H){drawGame();}
+}
+function drawGame(){
+  const w=win(G.start,G.b),t=G.t,x=[...Array(t+1).keys()],S=w.S.slice(0,t+1);
+  const bot=[];for(let u=0;u<H;u++)bot.push(botH(w,u));
+  const you=pnlCurve(w,G.h.concat(Array(H-G.h.length).fill(0)),t);
+  const bpnl=pnlCurve(w,bot,t);
+  const none=pnlCurve(w,Array(H).fill(0),t);
+  const ko=knockedBy(w,t);
+  $('#gday').textContent=t;
+  $('#gstatus').innerHTML=ko?'<span class="neg">Knocked out</span>':(t>=H?'Expired':'Alive');
+  const hh=t<H?botH(w,t):0;$('#gbot').textContent=fmt(hh,2);
+  if(t>=H||ko){ $('#gh').disabled=ko&&t<H?false:t>=H; }
+  $('#gstep').disabled=t>=H;$('#gcopy').disabled=t>=H;$('#gauto').disabled=t>=H;$('#gh').disabled=t>=H;
+  const rel=S.map(v=>100*v/w.S[0]);
+  const lines=[
+    {x,y:rel,xaxis:'x',yaxis:'y',mode:'lines+markers',line:{color:col('--fg'),width:2},marker:{size:4},hovertemplate:'day %{x}<br>%{y:.1f}% of start<extra></extra>'},
+    {x:[0,H],y:[100*w.B/w.S[0],100*w.B/w.S[0]],xaxis:'x',yaxis:'y',mode:'lines',line:{color:col('--down'),width:1.2,dash:'dash'},hoverinfo:'skip'},
+    {x:[0,H],y:[100,100],xaxis:'x',yaxis:'y',mode:'lines',line:{color:col('--mut'),width:1,dash:'dot'},hoverinfo:'skip'},
+    {x,y:none,xaxis:'x',yaxis:'y2',mode:'lines',line:{color:col('--mut'),width:1.4},name:'No hedge',hovertemplate:'No hedge %{y:.0f} bp<extra></extra>'},
+    {x,y:bpnl,xaxis:'x',yaxis:'y2',mode:'lines',line:{color:col('--acc'),width:2},name:'Bot',hovertemplate:'Bot %{y:.0f} bp<extra></extra>'},
+    {x,y:you,xaxis:'x',yaxis:'y2',mode:'lines',line:{color:'#d97706',width:2.4},name:'You',hovertemplate:'You %{y:.0f} bp<extra></extra>'},
+    {x:[...Array(t).keys()],y:bot.slice(0,t),xaxis:'x',yaxis:'y3',mode:'lines',line:{color:col('--acc'),width:1.6,shape:'hv'},hoverinfo:'skip'},
+    {x:[...G.h.keys()],y:G.h,xaxis:'x',yaxis:'y3',mode:'lines+markers',line:{color:'#d97706',width:2,shape:'hv'},marker:{size:4},hovertemplate:'You hold %{y:.2f}<extra></extra>'}];
+  Plotly.react('game',lines,layout({margin:{l:48,r:12,t:6,b:30},showlegend:false,
+    xaxis:axis({range:[-.5,H+.5],anchor:'y3',title:{text:'Trading day',font:{size:11}}}),
+    yaxis:axis({domain:[.7,1],ticksuffix:'%',title:{text:'Spot',font:{size:11}},range:[Math.min(85,...rel.map(v=>v-2),100*w.B/w.S[0]-2),Math.max(112,...rel.map(v=>v+2))]}),
+    yaxis2:axis({domain:[.36,.64],title:{text:'P&L bp',font:{size:11}}}),
+    yaxis3:axis({domain:[0,.28],title:{text:'Hedge',font:{size:11}},range:[-.05,1.25]}),
+    annotations:[
+      {xref:'paper',yref:'paper',x:0.01,y:0.63,text:'<span style="color:#d97706">You</span> · <span style="color:'+col('--acc')+'">Bot</span> · <span style="color:'+col('--mut')+'">No hedge</span>',showarrow:false,xanchor:'left',yanchor:'top',font:{size:11}}]}),cfg);
+  if(t>=H){
+    const f=a=>-a[a.length-1];const lu=f(you),lb=f(bpnl),ln=f(none);
+    const cl=v=>v>0?'neg':'pos';
+    $('#gscore').innerHTML=`<div class="score"><div><div class="l">You</div><div class="v num ${cl(lu)}">${fmt(lu,0)} bp</div></div><div><div class="l">Bot</div><div class="v num ${cl(lb)}">${fmt(lb,0)} bp</div></div><div><div class="l">No hedge</div><div class="v num ${cl(ln)}">${fmt(ln,0)} bp</div></div></div><p class="muted" style="font-size:12.5px;margin:10px 0 0">Final loss in bp of starting spot (negative = profit). ${lu<lb?'You beat the bot on this path.':'The bot did at least as well on this path.'} One path is luck as much as skill: use the backtest below to compare strategies across all windows.</p>`;}
+  else $('#gscore').innerHTML='';
+}
+function runBacktest(){
+  const btn=$('#crun');btn.disabled=true;btn.textContent='Running…';
+  setTimeout(()=>{
+    const b=G.b,c=+$('#cc').value/100,only25=$('#cwin').value==='2025';
+    const n=D.dates.length-H-1,first=only25?nearest('2025-01-01'):0;
+    const L={none:[],const:[],bgk:[],bs:[]};
+    for(let i=first;i<n;i++){
+      const w=win(i,b),zeros=Array(H).fill(0),hc=[],hb=[],hs=[];
+      for(let t=0;t<H;t++){const ko=knockedBy(w,t);hc.push(ko?0:c);hb.push(botH(w,t,true));hs.push(botH(w,t,false));}
+      L.none.push(lossOf(w,zeros));L.const.push(lossOf(w,hc));L.bgk.push(lossOf(w,hb));L.bs.push(lossOf(w,hs));}
+    const rows=[['No hedge',L.none],[`Constant ${fmt(c,2)}`,L.const],['Barrier delta (continuous)',L.bs],['Barrier delta (BGK-adjusted)',L.bgk]]
+      .map(([n,a])=>({n,cv:cvar(a),mean:a.reduce((x,y)=>x+y,0)/a.length,sd:Math.sqrt(a.reduce((s,y)=>s+y*y,0)/a.length-Math.pow(a.reduce((x,y)=>x+y,0)/a.length,2))}));
+    const colr=rows.map((r,i)=>[col('--mut'),'#d97706',col('--acc'),col('--acc')][i]);
+    $('#cres').innerHTML=`<div id="cbars" class="chart" style="height:${40+rows.length*44}px"></div>
+      <table><thead><tr><th>Strategy</th><th>CVaR95 (bp)</th><th>Mean loss (bp)</th><th>Std (bp)</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.n}</td><td class="num">${fmt(r.cv,1)}</td><td class="num">${fmt(r.mean,1)}</td><td class="num">${fmt(r.sd,1)}</td></tr>`).join('')}</tbody></table>
+      <p class="muted" style="font-size:12.5px;margin:10px 0 0">${L.none.length} overlapping windows, barrier ${fmt(b*100,0)}%.</p>`;
+    Plotly.react('cbars',[{type:'bar',orientation:'h',y:rows.map(r=>r.n),x:rows.map(r=>r.cv),marker:{color:colr},text:rows.map(r=>fmt(r.cv,0)+' bp'),textposition:'outside',cliponaxis:false,hoverinfo:'skip'}],
+      layout({margin:{l:190,r:60,t:6,b:30},xaxis:axis({title:{text:'CVaR95, bp of notional (lower is better)',font:{size:11}}}),yaxis:axis({autorange:'reversed'})}),cfg);
+    btn.disabled=false;btn.textContent='Run backtest';},30);
+}
+
+/* ================= results ================= */
+const NAMES={'bs_barrier_delta_bgk':'BGK barrier delta','bs_barrier_delta':'Continuous barrier delta','smile_delta':'Smile delta','ww_band':'Whalley–Wilmott band','no_hedge':'No hedge'};
+const nm=h=>NAMES[h]||h.replace(/^deep\[(.*)\]$/,(m,w)=>'Deep hedger · trained on '+w);
+let instr='I1';
+function initResults(){
+  $$('#iseg button').forEach(b=>b.onclick=()=>{instr=b.dataset.i;$$('#iseg button').forEach(x=>x.classList.toggle('on',x===b));drawResults();});
+  drawResults();}
+function drawResults(){
+  const rows=R.backtest.filter(r=>r.instruments===instr).sort((a,b)=>a.cvar95_bp-b.cvar95_bp);
+  const colr=rows.map(r=>r.hedger.startsWith('deep')?'#d97706':r.hedger==='no_hedge'?col('--mut'):col('--acc'));
+  Plotly.react('bars',[{type:'bar',orientation:'h',y:rows.map(r=>nm(r.hedger)),x:rows.map(r=>r.cvar95_bp),marker:{color:colr},
+    error_x:{type:'data',symmetric:false,array:rows.map(r=>Math.max(0,r.cvar95_bp_hi-r.cvar95_bp)),arrayminus:rows.map(r=>Math.max(0,r.cvar95_bp-r.cvar95_bp_lo)),color:col('--mut'),thickness:1,width:3},
+    text:rows.map(r=>fmt(r.cvar95_bp,0)),textposition:'inside',insidetextanchor:'start',textfont:{color:'#fff',size:12},
+    hovertemplate:'%{y}<br>CVaR95 %{x:.1f} bp<extra></extra>'}],
+    layout({margin:{l:230,r:20,t:8,b:36},xaxis:axis({title:{text:'CVaR95 of terminal loss, bp of notional',font:{size:11}}}),yaxis:axis({autorange:'reversed'})}),cfg);
+  const mat=R['cross_'+instr],cols=Object.keys(mat[0]).filter(k=>k!=='hedger');
+  const order=mat.slice().sort((a,b)=>a.real-b.real);
+  Plotly.react('heat',[{type:'heatmap',z:order.map(r=>cols.map(c=>r[c])),x:cols.map(c=>c==='real'?'REAL NIFTY':c),y:order.map(r=>nm(r.hedger)),
+    colorscale:[[0,'#0f766e'],[0.5,'#fde68a'],[1,'#b91c1c']],zmax:700,zmin:0,showscale:false,xgap:2,ygap:2,
+    texttemplate:'%{z:.0f}',textfont:{size:12,color:'#111'},hovertemplate:'%{y}<br>tested on %{x}<br>%{z:.0f} bp<extra></extra>'}],
+    layout({margin:{l:230,r:10,t:8,b:36},xaxis:axis({side:'bottom',showgrid:false}),yaxis:axis({autorange:'reversed',showgrid:false})}),cfg);}
+
+function drawAll(){drawTimeline();drawSurf();drawResults();drawGame();}
+
+Promise.all([fetch('data/surfaces.json').then(r=>r.json()),fetch('data/results.json').then(r=>r.json())])
+  .then(([d,r])=>{D=d;R=r;init();})
+  .catch(e=>{$('#app').innerHTML='<div class="loading">Could not load data: '+e+'</div>';});
+</script>
+</body>
+</html>

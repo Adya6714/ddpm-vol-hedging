@@ -30,7 +30,12 @@ def main():
     surf_dir = Path(cfg.get("surfaces_dir", "data/surfaces"))
     folds_dir = Path(cfg.get("folds_dir", "data/folds"))
 
-    if args.smoke or not (surf_dir / "surfaces_v2.npy").exists():
+    if not args.smoke and not (surf_dir / "surfaces_v2.npy").exists():
+        raise FileNotFoundError(
+            f"{surf_dir / 'surfaces_v2.npy'} missing. Run the Restore cell (or scripts/01_build_surfaces.py) first; "
+            "refusing to fall back to synthetic surfaces for a real run."
+        )
+    if args.smoke:
         grid = make_sample_surfaces(120, seed=args.seed)
         surfaces, dates = grid.surfaces, grid.dates
         spot = 20000 * np.cumprod(np.r_[1.0, 1 + 0.005 * np.random.randn(len(dates) - 1)])

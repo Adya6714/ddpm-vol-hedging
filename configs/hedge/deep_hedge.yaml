@@ -1,5 +1,11 @@
 algo: deep_hedge
-epochs: 50
+# hybrid policy: h = BGK barrier delta + learned correction (zero at init)
+residual: true
+steps: 3000          # Adam steps (mini-batch); ~2-4 min per run on a T4 for I1
+batch_size: 4096
+n_train: 50000       # paths drawn from data/paths/<world>/fold_k/paths_train.pt
+n_val: 10000         # disjoint validation paths from the same file
+epochs: 50           # only used if steps is null
 lr: 0.001
 alpha: 0.95
 hidden: 128

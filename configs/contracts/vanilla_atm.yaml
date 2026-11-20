@@ -1,0 +1,6 @@
+# Control contract: vanilla ATM call. Classical delta is close to optimal here, so a
+# realistic generator should NOT buy much; gains should concentrate in barrier contracts.
+kind: VANILLA_CALL
+strike_mult: 1.0
+barrier_mult: 1.0
+maturity_days: 30

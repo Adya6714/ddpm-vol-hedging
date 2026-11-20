@@ -1,5 +1,11 @@
 algo: ppo
-epochs: 20
+iterations: 300     # PPO iterations, each = batch_size sampled episodes + ppo_epochs updates
+batch_size: 4096
+ppo_epochs: 4
+clip: 0.2
 lr: 0.0003
+hidden: 128
 alpha: 0.95
+n_train: 50000
+n_val: 10000
 out_dir: "models/hedge_ppo"

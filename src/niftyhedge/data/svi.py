@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import least_squares
 
 
 @dataclass
@@ -29,7 +29,13 @@ def fit_svi_slice(
     *,
     butterfly_constrained: bool = True,
 ) -> tuple[SVIParams, float]:
-    """Fit raw SVI to total variance. Returns params and RMSE."""
+    """Fit raw SVI to total variance. Returns params and RMSE (total-variance units).
+
+    The fit is done on w / median(w): short-dated slices have w ~ 1e-4, and an
+    unscaled optimiser stops immediately (the old version returned ~40% ATM vol
+    for 9-day NIFTY slices whose market ATM was 13%). Several starts, bounded
+    least squares; the best fit is kept.
+    """
     k = np.asarray(k, dtype=float)
     w = np.asarray(w, dtype=float)
     mask = np.isfinite(k) & np.isfinite(w) & (w > 0)
@@ -37,22 +43,38 @@ def fit_svi_slice(
     if len(k) < 3:
         raise ValueError("Need at least 3 points to fit SVI")
 
-    def objective(x: np.ndarray) -> float:
-        a, b, rho, m, sigma = x
-        if b < 0 or abs(rho) >= 1 or sigma <= 0:
-            return 1e12
-        if butterfly_constrained and b * (1 + abs(rho)) > 2:
-            # Gatheral–Jacquier no-butterfly necessary condition scale
-            return 1e12
-        pred = a + b * (rho * (k - m) + np.sqrt((k - m) ** 2 + sigma**2))
-        if np.any(pred <= 0):
-            return 1e12
-        return float(np.mean((pred - w) ** 2))
+    scale = float(np.median(w))
+    y = w / scale
+    k_atm = float(k[np.argmin(np.abs(k))])
 
-    x0 = np.array([float(np.min(w)), 0.1, -0.3, 0.0, 0.1])
-    bounds = [(-1.0, 2.0), (1e-6, 5.0), (-0.999, 0.999), (-2.0, 2.0), (1e-4, 2.0)]
-    res = minimize(objective, x0, method="L-BFGS-B", bounds=bounds)
-    p = SVIParams(*map(float, res.x))
+    def resid(x: np.ndarray) -> np.ndarray:
+        a, b, rho, m, sigma = x
+        pred = a + b * (rho * (k - m) + np.sqrt((k - m) ** 2 + sigma**2))
+        r = pred - y
+        # soft constraints: positive minimum variance, Roger Lee wing bound
+        min_w = a + b * sigma * np.sqrt(max(1 - rho**2, 0.0))
+        pen = [10.0 * max(0.0, -min_w)]
+        if butterfly_constrained:
+            pen.append(10.0 * max(0.0, b * scale * (1 + abs(rho)) - 2.0))
+        return np.concatenate([r, pen])
+
+    lo = [-5.0, 0.0, -0.999, -1.0, 1e-3]
+    hi = [10.0, 200.0, 0.999, 1.0, 2.0]
+    best = None
+    for rho0 in (-0.6, -0.2, 0.2):
+        for sig0 in (0.05, 0.2):
+            x0 = np.array([float(y.min()) * 0.5, 1.0, rho0, k_atm, sig0])
+            x0 = np.clip(x0, np.array(lo) + 1e-9, np.array(hi) - 1e-9)
+            try:
+                res = least_squares(resid, x0, bounds=(lo, hi), method="trf", max_nfev=2000)
+            except Exception:
+                continue
+            if best is None or res.cost < best.cost:
+                best = res
+    if best is None:
+        raise RuntimeError("SVI fit failed")
+    a, b, rho, m, sigma = best.x
+    p = SVIParams(a=float(a * scale), b=float(b * scale), rho=float(rho), m=float(m), sigma=float(sigma))
     pred = svi_total_variance(k, p)
     rmse = float(np.sqrt(np.mean((pred - w) ** 2)))
     return p, rmse

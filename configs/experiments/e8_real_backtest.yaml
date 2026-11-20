@@ -1,7 +1,13 @@
+# Walk-forward real-NIFTY backtest: fold k hedgers on real windows starting in fold k's test year.
 contracts:
   - configs/contracts/doc_090.yaml
   - configs/contracts/doc_095.yaml
   - configs/contracts/doc_097.yaml
   - configs/contracts/uoc_103.yaml
   - configs/contracts/uoc_105.yaml
+  - configs/contracts/vanilla_atm.yaml   # control: BS delta should be near-optimal here
+instruments: [I1, I2]
+cost_bps: 2.0
+block: 30          # moving-block bootstrap block = window length (overlapping windows)
+n_boot: 2000
 out_dir: "tables"

@@ -12,7 +12,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from _common import add_common, ensure_smoke_folds, load_world, parse_folds
+from _common import add_common, ensure_smoke_folds, load_world, n_folds, parse_folds
 from niftyhedge.data.splits import load_fold
 from niftyhedge.gen.base import start_states_from_fold
 from niftyhedge.utils.io import ensure_dir, write_manifest
@@ -24,8 +24,8 @@ def main():
     add_common(p)
     p.add_argument("--worlds", type=str, default="gbm")
     p.add_argument("--folds", type=str, default="0")
-    p.add_argument("--n-train", type=int, default=200000)
-    p.add_argument("--n-test", type=int, default=100000)
+    p.add_argument("--n-train", type=int, default=60000)
+    p.add_argument("--n-test", type=int, default=20000)
     p.add_argument("--horizon", type=int, default=30)
     args = p.parse_args()
     if args.smoke:
@@ -35,7 +35,7 @@ def main():
         ensure_smoke_folds(Path("data/folds"))
 
     worlds = [w.strip() for w in args.worlds.split(",")]
-    folds = parse_folds(args.folds, n=len(list(Path("data/folds").glob("fold_*"))) or 1)
+    folds = parse_folds(args.folds, n=n_folds(Path("data/folds")))
 
     for wname in worlds:
         for k in folds:
@@ -49,7 +49,9 @@ def main():
                 set_seed(args.seed + (0 if split == "train" else 1))
                 starts = start_states_from_fold(fold, "train" if split == "train" else "test")
                 paths = world.sample_paths(starts, n, args.horizon, seed=args.seed)
-                torch.save({"S": paths.S, "surf": paths.surf, "start_idx": paths.start_idx}, out / f"paths_{split}.pt")
+                # surf in float16 (IV to ~1e-4) halves disk; S stays float32 (P&L precision)
+                torch.save({"S": paths.S.float().cpu(), "surf": paths.surf.half().cpu(),
+                            "start_idx": paths.start_idx.cpu()}, out / f"paths_{split}.pt")
             write_manifest(out, config={"world": wname, "fold": k}, seed=args.seed)
             print(f"paths {wname} fold={k} -> {out}")
 

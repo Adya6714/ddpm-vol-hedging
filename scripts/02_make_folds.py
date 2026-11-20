@@ -39,18 +39,22 @@ def main():
     else:
         surfaces = np.load(surf_dir / "surfaces_v2.npy")
         dates = np.load(surf_dir / "surface_dates_v2.npy", allow_pickle=True)
-        raw = Path("data/raw")
-        if (raw / "nifty_spot.parquet").exists():
-            import pandas as pd
+        spot_path = surf_dir / "spot_v2.parquet"
+        if not spot_path.exists():
+            raise FileNotFoundError(
+                f"{spot_path} missing - re-run scripts/01_build_surfaces.py (it now writes the "
+                "futures-implied spot series). Refusing to fall back to a random walk."
+            )
+        import pandas as pd
 
-            spot_df = pd.read_parquet(raw / "nifty_spot.parquet")
-            # align roughly by length if needed
-            spot = spot_df["close"].to_numpy(dtype=float)
-            if len(spot) != len(dates):
-                spot = 20000 * np.cumprod(np.r_[1.0, 1 + 0.005 * np.random.randn(len(dates) - 1)])
-        else:
-            spot = 20000 * np.cumprod(np.r_[1.0, 1 + 0.005 * np.random.randn(len(dates) - 1)])
-        vix = np.clip(14 + np.random.randn(len(dates)), 8, 40)
+        sp = pd.read_parquet(spot_path)
+        if list(sp["date"].astype(str)) != [str(d) for d in dates]:
+            raise ValueError("spot_v2.parquet dates do not match surface dates")
+        spot = sp["spot"].to_numpy(dtype=float)
+        # India VIX is not in bhavcopy; it is itself a ~30-day NIFTY option-implied
+        # vol, so the 30-day ATM IV of our own surface is used as the VIX proxy
+        # (build_conditioning lags it, so no same-day leakage).
+        vix = 100.0 * surfaces[:, 4, 2]
         test_years = cfg.get("test_years")
 
     C = build_conditioning(surfaces, dates, spot, vix, lag=int(cfg.get("lag", 1)))

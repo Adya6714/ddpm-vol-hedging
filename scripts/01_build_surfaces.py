@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -24,6 +25,10 @@ from niftyhedge.utils.io import ensure_dir, write_manifest
 def main():
     p = argparse.ArgumentParser()
     add_common(p)
+    p.add_argument("--cache-dir", default=None,
+                   help="checkpoint dir for resume (on Colab: a Drive path). "
+                        "Default: <surfaces_dir>/_cache; env NH_SURF_CACHE overrides.")
+    p.add_argument("--workers", type=int, default=0, help="0 = all CPUs")
     args = p.parse_args()
     cfg = load_config(args.config or "configs/data.yaml")
     out = ensure_dir(cfg.get("surfaces_dir", "data/surfaces"))
@@ -41,8 +46,21 @@ def main():
             min_price=float(cfg.get("min_price", 1.0)),
             min_dte=int(cfg.get("min_dte", 3)),
             svi_rmse_max=float(cfg.get("svi_rmse_max", 0.05)),
+            cache_dir=(args.cache_dir or os.environ.get("NH_SURF_CACHE")
+                       or (Path(out) / "_cache")),
+            workers=args.workers or (os.cpu_count() or 1),
         )
         surfaces, mask, dates = grid.surfaces, grid.mask, grid.dates
+        from niftyhedge.data.build_surfaces import spot_series_from_raw
+
+        spot_df = spot_series_from_raw(raw, r=float(cfg.get("r", 0.065)))
+        spot_df = spot_df.set_index("date").reindex([str(d) for d in dates])
+        n_missing = int(spot_df["spot"].isna().sum())
+        if n_missing:
+            print(f"WARNING: {n_missing} surface dates without futures; spot forward-filled")
+        spot_df = spot_df.ffill().bfill().reset_index().rename(columns={"index": "date"})
+        spot_df.to_parquet(out / "spot_v2.parquet", index=False)
+        print(f"spot series: {spot_df['spot'].iloc[0]:.0f} -> {spot_df['spot'].iloc[-1]:.0f}")
     elif (raw / "surfaces.npy").exists():
         print("WARNING: using legacy surfaces.npy (no SVI rebuild from parquet)")
         surfaces = np.load(raw / "surfaces.npy")

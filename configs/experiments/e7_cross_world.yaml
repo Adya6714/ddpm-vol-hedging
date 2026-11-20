@@ -1,5 +1,7 @@
 worlds: [gbm, heston, pcavar, bootstrap, ddpm]
-instruments: [I1, I2, I3]
+instruments: [I1, I2]
 contract: "configs/contracts/doc_090.yaml"
-n_test: 100000
+fold: 5            # simulated test paths + real windows from this fold's test period (2025 - Mar 2026)
+n_test: 20000
+cost_bps: 2.0
 out_dir: "tables"

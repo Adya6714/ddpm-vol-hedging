@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from _common import add_common, ensure_smoke_folds, get_world, parse_folds, parse_seeds, save_world
+from _common import add_common, ensure_smoke_folds, get_world, parse_folds, n_folds, parse_seeds, save_world
 from niftyhedge.data.splits import load_fold
 from niftyhedge.utils.config import load_config
 from niftyhedge.utils.io import ensure_dir, manifest_matches, write_manifest
@@ -28,7 +28,7 @@ def main():
     folds_dir = Path("data/folds")
     if args.smoke:
         ensure_smoke_folds(folds_dir)
-    folds = parse_folds(args.folds, n=len(list(folds_dir.glob("fold_*"))) or 1)
+    folds = parse_folds(args.folds, n=n_folds(folds_dir))
     seeds = parse_seeds(args.seeds)
 
     for k in folds:

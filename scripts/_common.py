@@ -39,6 +39,11 @@ def parse_seeds(s: str) -> list[int]:
     return [int(x) for x in str(s).split(",") if x != ""]
 
 
+def n_folds(folds_dir: Path = Path("data/folds")) -> int:
+    """Count fold_<k> directories (NOT fold_manifest.json, which made 'all' = 7 folds)."""
+    return sum(1 for p in Path(folds_dir).glob("fold_*") if p.is_dir()) or 1
+
+
 def parse_folds(s: str, n: int = 6) -> list[int]:
     if s == "all":
         return list(range(n))

@@ -10,4 +10,4 @@ r: 0.065
 min_volume: 50
 min_price: 1.0
 min_dte: 3
-svi_rmse_max: 0.05
+svi_rmse_max: 0.02   # SVI fit RMSE in implied-vol units (2 vol points)

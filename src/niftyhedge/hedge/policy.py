@@ -9,9 +9,18 @@ import torch.nn as nn
 class HedgePolicy(nn.Module):
     """Maps state features -> underlying (and optional option) positions."""
 
-    def __init__(self, state_dim: int, n_opt: int = 0, hidden: int = 128):
+    def __init__(self, state_dim: int, n_opt: int = 0, hidden: int = 128, residual: bool = True,
+                 max_correction: float = 1.0):
+        """residual=True: h = BS-barrier delta (last state feature) + learned correction.
+
+        The output layer is zero-initialised, so an untrained policy *is* the
+        BGK barrier delta hedge with no options; training can only move away
+        from it if that lowers CVaR. This is the hybrid model-plus-network design.
+        """
         super().__init__()
         self.n_opt = n_opt
+        self.residual = residual
+        self.max_correction = max_correction
         out = 1 + n_opt
         self.net = nn.Sequential(
             nn.Linear(state_dim, hidden),
@@ -20,10 +29,16 @@ class HedgePolicy(nn.Module):
             nn.SiLU(),
             nn.Linear(hidden, out),
         )
+        if residual:
+            nn.init.zeros_(self.net[-1].weight)
+            nn.init.zeros_(self.net[-1].bias)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor | None]:
         y = self.net(x)
-        h = 2.0 * torch.tanh(y[..., 0])
+        if self.residual:
+            h = x[..., -1] + self.max_correction * torch.tanh(y[..., 0])
+        else:
+            h = 2.0 * torch.tanh(y[..., 0])
         if self.n_opt > 0:
             q = torch.tanh(y[..., 1:])
             return h, q

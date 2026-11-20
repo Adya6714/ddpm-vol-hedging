@@ -21,6 +21,7 @@ def terminal_loss(
     cost: CostModel,
     p0: torch.Tensor,
     r: float = 0.065,
+    O: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """L = payoff - p0 - sum h*dS - sum q*dO + costs. Short one option.
 
@@ -45,7 +46,8 @@ def terminal_loss(
     opt_pnl = torch.zeros(n, dtype=S.dtype, device=S.device)
     opt_cost = torch.zeros(n, dtype=S.dtype, device=S.device)
     if q is not None and instruments is not None:
-        O = vanilla_prices_along_path(S, paths.surf, instruments, contract.maturity_days, r=r)
+        if O is None:  # option marks do not depend on the policy: pass them precomputed
+            O = vanilla_prices_along_path(S, paths.surf, instruments, contract.maturity_days, r=r)
         assert_finite(O, "O")
         dO = O[:, 1:] - O[:, :-1]
         q_eff = q * alive.float().unsqueeze(-1)
@@ -75,45 +77,48 @@ def bs_barrier_price_torch(
     r: float,
     sigma: torch.Tensor,
     kind: str = "DOC",
+    q: float = 0.0,
 ) -> torch.Tensor:
-    """Continuous-monitoring down-and-out / up-and-out call (closed form)."""
-    # vectorised; for DOC use reflection formula
-    sigma = torch.clamp(sigma, min=1e-6)
+    """Continuous-monitoring barrier calls (Merton / Reiner-Rubinstein; Hull ch. 26).
+
+    DOC: down-and-out call, valid for B <= K (the usual case, B = 0.9..0.97 S0).
+    UOC: up-and-out call, B > K.
+    Previous version scaled the reflected term by (B/S)^(2*lam) instead of
+    (B/S)^(2*lam-2) and returned the *vanilla* price for UOC.
+    """
+    S = torch.as_tensor(S)
+    K = torch.as_tensor(K, dtype=S.dtype, device=S.device)
+    B = torch.as_tensor(B, dtype=S.dtype, device=S.device)
+    T = torch.as_tensor(T, dtype=S.dtype, device=S.device)
+    sigma = torch.clamp(torch.as_tensor(sigma, dtype=S.dtype, device=S.device), min=1e-6)
     T = torch.clamp(T, min=1e-8)
-    sqrtT = torch.sqrt(T)
-    d1 = (torch.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * sqrtT)
-    d2 = d1 - sigma * sqrtT
+    sqT = torch.sqrt(T)
+    sT = sigma * sqT
     N = lambda x: 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
-    vanilla = S * N(d1) - K * torch.exp(-r * T) * N(d2)
+    dq, dr = torch.exp(-q * T), torch.exp(-r * T)
+    d1 = (torch.log(S / K) + (r - q + 0.5 * sigma**2) * T) / sT
+    d2 = d1 - sT
+    vanilla = S * dq * N(d1) - K * dr * N(d2)
     if kind == "VANILLA_CALL":
         return vanilla
-    lam = (r + 0.5 * sigma**2) / sigma**2
+    lam = (r - q + 0.5 * sigma**2) / sigma**2
+    y = torch.log(B * B / (S * K)) / sT + lam * sT
     if kind == "DOC":
-        y = torch.log(B * B / (S * K)) / (sigma * sqrtT) + lam * sigma * sqrtT
-        x1 = torch.log(S / B) / (sigma * sqrtT) + lam * sigma * sqrtT
-        # standard DOC for K > B
-        term = (B / S) ** (2 * lam) * (
-            B * N(y) - K * torch.exp(-r * T) * N(y - sigma * sqrtT)
+        c_di = S * dq * (B / S) ** (2 * lam) * N(y) - K * dr * (B / S) ** (2 * lam - 2) * N(y - sT)
+        price = torch.clamp(vanilla - c_di, min=0.0)
+        return torch.where(S <= B, torch.zeros_like(price), price)
+    if kind == "UOC":
+        x1 = torch.log(S / B) / sT + lam * sT
+        y1 = torch.log(B / S) / sT + lam * sT
+        c_ui = (
+            S * dq * N(x1)
+            - K * dr * N(x1 - sT)
+            - S * dq * (B / S) ** (2 * lam) * (N(-y) - N(-y1))
+            + K * dr * (B / S) ** (2 * lam - 2) * (N(-y + sT) - N(-y1 + sT))
         )
-        # simplified reflection used in legacy notebook
-        bt = (B / S) ** (2 * lam) * (
-            (B * B / S) * N(d1 * 0 + torch.log(B * B / (S * K)) / (sigma * sqrtT) + (r + 0.5 * sigma**2) * T / (sigma * sqrtT))
-            - K * torch.exp(-r * T)
-            * N(
-                torch.log(B * B / (S * K)) / (sigma * sqrtT)
-                + (r - 0.5 * sigma**2) * T / (sigma * sqrtT)
-            )
-        )
-        # use cleaner formula:
-        pow_ = (B / S) ** (2 * lam)
-        d1_bb = (torch.log(B * B / (S * K)) + (r + 0.5 * sigma**2) * T) / (sigma * sqrtT)
-        d2_bb = d1_bb - sigma * sqrtT
-        knocked_part = pow_ * (B * B / S * N(d1_bb) - K * torch.exp(-r * T) * N(d2_bb))
-        price = torch.clamp(vanilla - knocked_part, min=0.0)
-        price = torch.where(S <= B, torch.zeros_like(price), price)
-        return price
-    # UOC approx via put-call barrier symmetry not implemented fully; use vanilla - DOC-like
-    return vanilla
+        price = torch.clamp(vanilla - c_ui, min=0.0)
+        return torch.where(S >= B, torch.zeros_like(price), price)
+    raise ValueError(f"unknown barrier kind {kind}")
 
 
 def bs_barrier_delta(

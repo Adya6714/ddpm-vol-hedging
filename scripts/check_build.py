@@ -119,20 +119,31 @@ def check_a11() -> bool:
 
 
 def check_a14() -> bool:
-    # Look for a trained W0 run manifest
-    matches = list(Path("models/hedge").glob("gbm/I1/*/fold_*/seed_*/manifest.json"))
-    if not matches:
-        bad("A14 no trained gbm/I1 hedger found (run Gate 3 first)")
-        return False
+    """Gate 3: in the GBM world BS barrier delta is (near-)optimal, so a correctly
+    working deep hedger must MATCH it: CVaR within 5% of BGK delta, not far
+    better (that would signal a leak / scoring bug) and not worse (broken training)."""
     import json
 
-    man = json.loads(matches[0].read_text())
-    act = man.get("action_std")
-    if act is None or act <= 0.05:
-        bad(f"A14 action_std={act} (need > 0.05)")
+    metas = sorted(Path("models/hedge").glob("gbm/I1/doc_090/fold_*/seed_*/policy_meta.json"))
+    if not metas:
+        bad("A14 no trained gbm/I1/doc_090 hedger with policy_meta.json (run Gate 3 first)")
         return False
-    ok(f"A14 found hedger with action_std={act}")
-    return True
+    ok_all = True
+    for m in metas:
+        meta = json.loads(m.read_text())
+        dh, bs = meta.get("val_cvar"), meta.get("bs_val_cvar")
+        if dh is None or bs is None:
+            bad(f"A14 {m.parent}: missing val_cvar/bs_val_cvar")
+            ok_all = False
+            continue
+        ratio = dh / bs if bs else float("inf")
+        msg = f"A14 {m.parent.parent.name}/{m.parent.name}: deep {dh*1e4:.1f}bp vs BGK {bs*1e4:.1f}bp (ratio {ratio:.3f})"
+        if 0.80 <= ratio <= 1.05:
+            ok(msg)
+        else:
+            bad(msg + " - need 0.80..1.05")
+            ok_all = False
+    return ok_all
 
 
 def main():

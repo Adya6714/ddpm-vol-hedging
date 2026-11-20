@@ -70,7 +70,7 @@ def lookup_iv(
 
 
 def _bs_call_put(S, K, T, r, sigma, kind: str) -> torch.Tensor:
-    T = torch.clamp(T, min=1e-8)
+    T = torch.clamp(torch.as_tensor(T, dtype=S.dtype, device=S.device), min=1e-8)
     sigma = torch.clamp(sigma, min=1e-6)
     d1 = (torch.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * torch.sqrt(T))
     d2 = d1 - sigma * torch.sqrt(T)
@@ -100,11 +100,7 @@ def vanilla_prices_along_path(
         for t in range(Hp1):
             rem = max(tenor0 - t, float(TENORS_DAYS[0]))
             mny = (K / S[:, t]).detach()  # moneyness vs current spot proxy for F
-            # vectorized lookup per path
-            ivs = []
-            for i in range(n):
-                ivs.append(lookup_iv(surf[i, t], float(mny[i]), rem))
-            iv = torch.stack(ivs)
+            iv = lookup_iv(surf[:, t], mny, float(rem))  # vectorised over paths
             T = rem / 365.0
             out[:, t, j] = _bs_call_put(S[:, t], K, T, r, iv, kind)
     return out
